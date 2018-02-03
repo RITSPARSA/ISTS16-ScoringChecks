@@ -4,6 +4,7 @@ import requests
 import jenkins
 import sys
 import time
+import re
 
 TEAM_COUNT = 5
 TEAM_EXT_IP = "10.3.x.20"
@@ -12,21 +13,21 @@ CHECK_USERNAME = "scoring"
 CHECK_BUILD_NAME = "ShipBuilder"
 CHECK_WINDOWS = "jobs/windows.xml"
 CHECK_LINUX = "jobs/bsd.xml"
-CHECK_FLAG = 'hi'
+CHECK_FLAG = 'CHECK'
 API_TOK = "GPNNKHLAHV"
 API_SHIP_URL = "http://10.0.20.21:6000"
-HASHES = ["c4ca4238a0b923820dcc509a6f75849b",
-"c81e728d9d4c2f636f067f89cc14862c",
-"eccbc87e4b5ce2fe28308fd9f2a7baf3",
-"a87ff679a2f3e71d9181a67b7542122c",
-"e4da3b7fbbce2345d7772b0674a318d5",
-"1679091c5a880faf6fb5e6087eb1b2dc",
-"8f14e45fceea167a5a36dedd4bea2543",
-"c9f0f895fb98ab9159f51fd0297e236d",
-"45c48cce2e2d7fbdea1afc51c7c6ad26",
-"d3d9446802a44259755d38e6d163e820",
-"6512bd43d9caa6e02c990b0a82652dca"]
-
+HASHES = ["b6589fc6ab0dc82cf12099d1c2d40ab994e8410c",
+"356a192b7913b04c54574d18c28d46e6395428ab",
+"da4b9237bacccdf19c0760cab7aec4a8359010b0",
+"77de68daecd823babbb58edb1c8e14d7106e83bb",
+"1b6453892473a467d07372d45eb05abc2031647a",
+"ac3478d69a3c81fa62e60f5c3696165a4e5e6ac4",
+"c1dfd96eea8cc2b62785275bca38ac261256e278",
+"902ba3cda1883801594b6e1b452790cc53948fda",
+"fe5dbbcea5ce7e2988b8c69bcfdfde8904aabc1f",
+"0ade7c2cf97f75d009975f4d720d1fa6c19f4897",
+"b1d5781111d84f7b3fe45a0852e59758cd7a87e5",
+"17ba0791499db908433b80f37c5fbc89b870084b"]
 
 def connect(ip, passwd):
     '''Make a connection to the jenkins server at IP
@@ -88,14 +89,18 @@ def checkJob(ip, password):
     output = server.get_build_console_output(CHECK_BUILD_NAME,
         build_num)
     # ensure output contains success and whiteteamKEY
-    if (success not in output) or (CHECK_FLAG not in output):
+    if success not in output:
         print("[-] Build failed")
-        return False
+        raise Exception("The build has failed: Did not compile")
+    if CHECK_FLAG not in output:
+        print("[-] Build failed")
+        raise Exception("The build has failed: Missing scoring flag")
     # Find the flag in the output
     try:
-        flag = re.findall('==== .+', output)[0]
+        flag = re.findall('==== .+', output)
+        flag = flag[0]
     except:
-        flag = "aaaaaaa"
+        flag = "NOFLAGFOUND"
     return incrementShips(ip, flag)
 
 
@@ -106,8 +111,10 @@ def incrementShips(ip, flag):
     # Determine the team number based on the flag
     try:
         teamNum = HASHES.index(flag[4:].strip())
+        print("[*] Getting team from flag")
     except:
-        teamNum = ip.split(".")[3]
+        teamNum = ip.split(".")[2]
+        print("[*] Getting team from IP")
     # Check if we are building Bombers or Guardians
     if getHostname(ip) == "wolf":
         # Wolf makes bombers
@@ -122,7 +129,7 @@ def incrementShips(ip, flag):
 
     try:
         apiRequest(url, endpoint, data=data)
-        print("[+] Build ships")
+        print("[+] Build {} for team {}".format(shipType, teamNum))
         return True
     except Exception as e:
         print("[!] Error building ships: {}".format(e))
