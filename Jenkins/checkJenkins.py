@@ -6,7 +6,6 @@ import sys
 import time
 import re
 
-TEAM_COUNT = 5
 TEAM_EXT_IP = "10.3.x.20"
 CHECK_TIMEOUT = 10
 CHECK_USERNAME = "scoring"
@@ -83,8 +82,19 @@ def checkJob(ip, password):
         print("[*] waiting on build...")
         
     # get the last build number (name of the build to get)
-    build_num = server.get_job_info(
-        CHECK_BUILD_NAME)['lastBuild']['number']
+    isPass = False
+    count = 0
+    while not isPass:
+        if count > 10:
+            raise Exception("Failing a bunch")
+        try:
+            build_num = server.get_job_info(
+                CHECK_BUILD_NAME)['lastBuild']['number']
+            isPass = True
+        except:
+            count += 1
+            time.sleep(5)
+            
     # retrieve the output of the build (name of build, number of that build)
     output = server.get_build_console_output(CHECK_BUILD_NAME,
         build_num)
